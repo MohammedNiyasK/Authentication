@@ -1,69 +1,69 @@
+const express = require("express");
+const ejs = require("ejs");
+const bodyParser = require("body-parser");
 
-const express = require('express')
-const ejs = require('ejs')
-const bodyParser = require('body-parser')
-const md5 = require('md5')
-const db = require('./db')
+const db = require("./db");
 
-const User = db.User
+const User = db.User;
 
-const app = express()
+const app = express();
 
-app.use(express.static('public'))
-app.set('view engine' , 'ejs')
-app.use(bodyParser.urlencoded({extended:true}))
+const bcrypt = require("bcrypt");
+const saltRounds = 10;
 
-app.get('/' , (req, res) => {
-    res.render('home')
-})
+app.use(express.static("public"));
+app.set("view engine", "ejs");
+app.use(bodyParser.urlencoded({ extended: true }));
 
-app.get('/login' , (req, res) => {
-    res.render('login')
-})
+app.get("/", (req, res) => {
+  res.render("home");
+});
 
-app.get('/register' , (req, res) => {
-    res.render('register')
-})
+app.get("/login", (req, res) => {
+  res.render("login");
+});
 
-app.post('/register' ,async (req,res) =>{
+app.get("/register", (req, res) => {
+  res.render("register");
+});
 
-    const email = req.body.username
-    const password = md5(req.body.password) 
+app.post("/register", async (req, res) => {
+  const email = req.body.username;
+  const password = req.body.password;
 
-    try {
-        const newUser =await new User({email:email, password:password})
-
-       await newUser.save()
-       res.render('secrets')
-    } 
-    catch (error) {
-        console.log(`Error found : ${error}`);
-    }
-
-})
-
-app.post('/login' ,async (req,res) =>{
-
-    const username = req.body.username
-    const password = md5(req.body.password)
+  bcrypt.hash(password, saltRounds, async function (err, hash) {
+    // Store hash in your password DB.
 
     try {
-    const user = await User.findOne({email:username})
-     if(user.password === password){
-        res.render('secrets')
-     }
-     else{
-        res.render('login')
-     }
+      const newUser = await new User({ email: email, password: hash });
+
+      await newUser.save();
+      res.render("secrets");
     } catch (error) {
-        console.log(`error found : ${error}`);
+      console.log(`Error found : ${error}`);
     }
+  });
+});
 
-    
-})
+app.post("/login", async (req, res) => {
+  const username = req.body.username;
+  const password = req.body.password;
 
+  try {
+    const user = await User.findOne({ email: username });
+    const match = await bcrypt.compare(password, user.password);
 
+    if (match) {
+      //login
+      res.render("secrets");
+    } else {
+      res.render("register");
+    }
+  } catch (error) {
+    console.log(`error found : ${error}`);
+  }
+});
 
-app.listen(3000 , () => {
-    console.log('server running at port 3000');
-} )
+app.listen(3000, () => {
+  console.log("server running at port 3000");
+});
